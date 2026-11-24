@@ -42,15 +42,15 @@ The backend modules are:
 
 ### GitHub Pull Request review
 
-![GitHub Pull Request security comment](docs/screenshots/github-pr-review-placeholder.png)
+![GitHub Pull Request CRITICAL security review](docs/screenshots/github-pr-critical-review.JPG)
 
-> Placeholder: add a screenshot of the Markdown review posted on a Pull Request.
+### SAFE review example
+
+![GitHub Pull Request SAFE security review](docs/screenshots/github-pr-safe-review.JPG)
 
 ### Streamlit dashboard
 
-![Streamlit audit dashboard](docs/screenshots/streamlit-dashboard-placeholder.png)
-
-> Placeholder: add a screenshot of the KPI cards, risk chart, and audit history.
+![Streamlit audit dashboard](docs/screenshots/streamlit-audit-history.JPG)
 
 ## Local setup
 
