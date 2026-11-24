@@ -1,5 +1,6 @@
 import json
 import logging
+import time
 
 from google import genai
 from google.genai import types
@@ -47,21 +48,61 @@ class SecurityAnalyzer:
             "names and line numbers from added diff lines when possible.\n\n"
             f"{format_diff(filtered_files)}"
         )
+        last_error: Exception | None = None
+        for attempt in range(3):
+            try:
+                response = self.client.models.generate_content(
+                    model=self.model,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json",
+                        response_schema=AuditOutput,
+                        temperature=0.1,
+                    ),
+                )
+                if not response.text:
+                    raise AnalysisError("Gemini returned an empty response")
+                return self._parse_response(response.text)
+            except AnalysisError:
+                raise
+            except Exception as exc:
+                last_error = exc
+                status_code = getattr(exc, "code", None)
+                if status_code is None:
+                    status_code = getattr(exc, "status_code", None)
+                if status_code in {429, "429"} and attempt < 2:
+                    delay = 2 ** attempt
+                    logger.warning(
+                        "Gemini rate limit 429; retrying in %s seconds (attempt %s/3)",
+                        delay,
+                        attempt + 1,
+                    )
+                    time.sleep(delay)
+                    continue
+                logger.exception("Gemini API call failed: %s", exc)
+                break
+
+        detail = str(last_error).replace("\n", " ").strip() if last_error else "unknown error"
+        if len(detail) > 500:
+            detail = detail[:497] + "..."
+        logger.error("Gemini analysis failed: %s", detail)
+        raise AnalysisError(f"Gemini analysis failed: {detail}") from last_error
+
+    @staticmethod
+    def _parse_response(text: str) -> AuditOutput:
+        cleaned = text.strip()
+        if cleaned.startswith("```"):
+            lines = cleaned.splitlines()
+            if lines and lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].strip() == "```":
+                lines = lines[:-1]
+            cleaned = "\n".join(lines).strip()
         try:
-            response = self.client.models.generate_content(
-                model=self.model,
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json",
-                    response_schema=AuditOutput,
-                    temperature=0.1,
-                ),
-            )
-            if not response.text:
-                raise AnalysisError("Gemini returned an empty response")
-            return AuditOutput.model_validate_json(response.text)
-        except AnalysisError:
-            raise
+            data = json.loads(cleaned)
+            return AuditOutput.model_validate(data)
         except Exception as exc:
-            logger.exception("Gemini analysis failed")
-            raise AnalysisError("Gemini analysis failed") from exc
+            logger.exception("Gemini returned invalid JSON")
+            raise AnalysisError(
+                f"Gemini returned invalid structured JSON: {type(exc).__name__}: {exc}"
+            ) from exc

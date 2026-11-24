@@ -15,7 +15,9 @@ IGNORED_FILENAMES = {
 
 
 class GitHubAPIError(RuntimeError):
-    pass
+    def __init__(self, message: str, status_code: int | None = None) -> None:
+        super().__init__(message)
+        self.status_code = status_code
 
 
 def verify_signature(payload: bytes, signature: str | None, secret: str) -> bool:
@@ -67,13 +69,20 @@ class GitHubClient:
                 response.raise_for_status()
                 return response.json()
         except httpx.HTTPStatusError as exc:
-            if exc.response.status_code == 403:
-                raise GitHubAPIError("GitHub API rate limit or forbidden") from exc
-            raise GitHubAPIError(
-                f"GitHub API returned {exc.response.status_code}"
-            ) from exc
+            status_code = exc.response.status_code
+            response_detail = exc.response.text[:500].replace("\n", " ")
+            if status_code == 403:
+                message = "GitHub API rate limit or forbidden"
+            elif status_code == 404:
+                message = "GitHub API 404: repository, PR, or token access unavailable"
+            else:
+                message = f"GitHub API returned HTTP {status_code}"
+            raise GitHubAPIError(f"{message}: {response_detail}", status_code) from exc
         except httpx.RequestError as exc:
-            raise GitHubAPIError("GitHub API request failed") from exc
+            raise GitHubAPIError(
+                f"GitHub API request failed: {type(exc).__name__}: {exc}",
+                None,
+            ) from exc
 
     async def post_pr_comment(
         self,
@@ -93,8 +102,14 @@ class GitHubClient:
                 )
                 response.raise_for_status()
         except httpx.HTTPStatusError as exc:
+            status_code = exc.response.status_code
+            response_detail = exc.response.text[:500].replace("\n", " ")
             raise GitHubAPIError(
-                f"GitHub comment API returned {exc.response.status_code}"
+                f"GitHub comment API returned HTTP {status_code}: {response_detail}",
+                status_code,
             ) from exc
         except httpx.RequestError as exc:
-            raise GitHubAPIError("GitHub comment request failed") from exc
+            raise GitHubAPIError(
+                f"GitHub comment request failed: {type(exc).__name__}: {exc}",
+                None,
+            ) from exc
