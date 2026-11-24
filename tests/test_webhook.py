@@ -39,6 +39,16 @@ def test_filter_diff_ignores_non_code_files():
     ]
 
 
+def test_github_missing_repository_error_is_actionable():
+    from app.github_client import GitHubAPIError
+
+    error = GitHubAPIError(
+        "GitHub API 404: repository or pull request is missing",
+        404,
+    )
+    assert error.status_code == 404
+
+
 def test_webhook_rejects_invalid_signature(monkeypatch):
     engine = create_engine("sqlite://", connect_args={"check_same_thread": False})
     SQLModel.metadata.create_all(engine)

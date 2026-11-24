@@ -1,4 +1,3 @@
-import json
 import logging
 
 from google import genai
@@ -64,4 +63,12 @@ class SecurityAnalyzer:
             raise
         except Exception as exc:
             logger.exception("Gemini analysis failed")
-            raise AnalysisError("Gemini analysis failed") from exc
+            status_code = getattr(exc, "code", None)
+            message = str(exc).replace("\n", " ").strip()
+            if len(message) > 300:
+                message = message[:297] + "..."
+            if status_code:
+                raise AnalysisError(
+                    f"Gemini API returned {status_code}: {message}"
+                ) from exc
+            raise AnalysisError(f"Gemini analysis failed: {message}") from exc

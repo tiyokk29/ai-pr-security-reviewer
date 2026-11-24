@@ -55,6 +55,7 @@ Fill `.env` with a Gemini API key, GitHub token, and webhook secret:
 
 ```text
 GEMINI_API_KEY=your-key
+GEMINI_MODEL=gemini-3.8-flash
 GITHUB_TOKEN=github_pat_or_fine_grained_token
 GITHUB_WEBHOOK_SECRET=your-random-secret
 ```

@@ -117,7 +117,11 @@ async def github_webhook(request: Request) -> dict[str, str]:
     try:
         raw_files = await github.get_pull_files(repository, pr_number)
     except GitHubAPIError as exc:
-        logger.warning("GitHub fetch failed: %s", exc)
+        logger.warning(
+            "GitHub fetch failed (status=%s): %s",
+            exc.status_code,
+            exc,
+        )
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
     filtered_files = filter_diff(raw_files)
@@ -136,7 +140,11 @@ async def github_webhook(request: Request) -> dict[str, str]:
             render_markdown(scan, audit),
         )
     except GitHubAPIError as exc:
-        logger.warning("GitHub comment failed: %s", exc)
+        logger.warning(
+            "GitHub comment failed (status=%s): %s",
+            exc.status_code,
+            exc,
+        )
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     except Exception as exc:
         logger.exception("Failed to persist scan")
