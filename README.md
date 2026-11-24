@@ -38,6 +38,20 @@ The backend modules are:
 - `app/models.py`: SQLModel and Pydantic schemas.
 - `dashboard/app.py`: monitoring and demo experience.
 
+## Screenshots
+
+### GitHub Pull Request review
+
+![GitHub Pull Request security comment](docs/screenshots/github-pr-review-placeholder.png)
+
+> Placeholder: add a screenshot of the Markdown review posted on a Pull Request.
+
+### Streamlit dashboard
+
+![Streamlit audit dashboard](docs/screenshots/streamlit-dashboard-placeholder.png)
+
+> Placeholder: add a screenshot of the KPI cards, risk chart, and audit history.
+
 ## Local setup
 
 Use Python 3.11 or newer.

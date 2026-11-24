@@ -117,7 +117,11 @@ async def github_webhook(request: Request) -> dict[str, str]:
     try:
         raw_files = await github.get_pull_files(repository, pr_number)
     except GitHubAPIError as exc:
-        logger.warning("GitHub fetch failed: %s", exc)
+        logger.exception(
+            "GitHub fetch failed (status=%s): %s",
+            exc.status_code,
+            exc,
+        )
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
     filtered_files = filter_diff(raw_files)
@@ -125,7 +129,7 @@ async def github_webhook(request: Request) -> dict[str, str]:
         analyzer = SecurityAnalyzer(settings.gemini_api_key, settings.gemini_model)
         audit = analyzer.analyze(filtered_files)
     except AnalysisError as exc:
-        logger.warning("Gemini analysis failed: %s", exc)
+        logger.exception("Gemini analysis failed: %s", exc)
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
     try:
@@ -136,11 +140,22 @@ async def github_webhook(request: Request) -> dict[str, str]:
             render_markdown(scan, audit),
         )
     except GitHubAPIError as exc:
-        logger.warning("GitHub comment failed: %s", exc)
+        logger.exception(
+            "GitHub comment failed (status=%s): %s",
+            exc.status_code,
+            exc,
+        )
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     except Exception as exc:
-        logger.exception("Failed to persist scan")
-        raise HTTPException(status_code=500, detail="Failed to persist scan") from exc
+        logger.exception(
+            "Failed to persist scan or post GitHub comment: %s: %s",
+            type(exc).__name__,
+            exc,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="An internal server error occurred while processing the pull request.",
+        ) from exc
 
     return {"status": "processed", "scan_id": str(scan.id)}
 
