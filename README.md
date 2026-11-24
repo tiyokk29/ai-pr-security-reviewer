@@ -10,7 +10,7 @@ provides a live portfolio dashboard for repository and risk filtering.
 - Constant-time HMAC SHA-256 webhook verification.
 - Processing for `pull_request` actions `opened` and `synchronize`.
 - Diff filtering for lockfiles, binary files, images, and unsupported assets.
-- Gemini `gemini-2.5-flash` structured output for consistent findings.
+- Gemini structured output for consistent findings.
 - Detection guidance for secrets, injection, XSS, weak cryptography,
   authentication/authorization bugs, and logic flaws.
 - SQLite scan history with pull request metadata and finding details.

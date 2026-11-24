@@ -48,39 +48,51 @@ class SecurityAnalyzer:
             "names and line numbers from added diff lines when possible.\n\n"
             f"{format_diff(filtered_files)}"
         )
+        models = list(dict.fromkeys([
+            self.model,
+            "gemini-3.5-flash",
+            "gemini-3.1-flash-lite",
+        ]))
         last_error: Exception | None = None
-        for attempt in range(3):
-            try:
-                response = self.client.models.generate_content(
-                    model=self.model,
-                    contents=prompt,
-                    config=types.GenerateContentConfig(
-                        response_mime_type="application/json",
-                        response_schema=AuditOutput,
-                        temperature=0.1,
-                    ),
-                )
-                if not response.text:
-                    raise AnalysisError("Gemini returned an empty response")
-                return self._parse_response(response.text)
-            except AnalysisError:
-                raise
-            except Exception as exc:
-                last_error = exc
-                status_code = getattr(exc, "code", None)
-                if status_code is None:
-                    status_code = getattr(exc, "status_code", None)
-                if status_code in {429, "429"} and attempt < 2:
-                    delay = 2 ** attempt
-                    logger.warning(
-                        "Gemini rate limit 429; retrying in %s seconds (attempt %s/3)",
-                        delay,
-                        attempt + 1,
+        for model in models:
+            for attempt in range(3):
+                try:
+                    response = self.client.models.generate_content(
+                        model=model,
+                        contents=prompt,
+                        config=types.GenerateContentConfig(
+                            response_mime_type="application/json",
+                            response_schema=AuditOutput,
+                            temperature=0.1,
+                        ),
                     )
-                    time.sleep(delay)
-                    continue
-                logger.exception("Gemini API call failed: %s", exc)
-                break
+                    if not response.text:
+                        raise AnalysisError("Gemini returned an empty response")
+                    return self._parse_response(response.text)
+                except AnalysisError:
+                    raise
+                except Exception as exc:
+                    last_error = exc
+                    status_code = getattr(exc, "code", None)
+                    if status_code is None:
+                        status_code = getattr(exc, "status_code", None)
+                    if str(status_code) in {"429", "503"} and attempt < 2:
+                        delay = 2 ** attempt
+                        logger.warning(
+                            "Gemini %s on %s; retrying in %s seconds (attempt %s/3)",
+                            status_code,
+                            model,
+                            delay,
+                            attempt + 1,
+                        )
+                        time.sleep(delay)
+                        continue
+                    logger.exception(
+                        "Gemini API call failed on model %s: %s",
+                        model,
+                        exc,
+                    )
+                    break
 
         detail = str(last_error).replace("\n", " ").strip() if last_error else "unknown error"
         if len(detail) > 500:
